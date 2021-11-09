@@ -26,7 +26,7 @@ COPY . .
 
 RUN go get -d -v ./...
 
-RUN GODEBUG=netdns=go GOOS=linux go install -tags blst_enabled -ldflags "-X main.Version=`git describe --tags $(git rev-list --tags --max-count=1)` -linkmode external -extldflags \"-static -lm\"" ./cmd/ssvnode
+RUN GOOS=linux go install -tags blst_enabled -ldflags "-X main.Version=`git describe --tags $(git rev-list --tags --max-count=1)` -linkmode external -extldflags \" -lm\"" ./cmd/ssvnode
 
 #
 # STEP 3: Prepare image to run the binary
