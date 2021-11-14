@@ -10,6 +10,8 @@ import (
 // handleGetHighestReq will return the highest known decided msg.
 // In case there isn't one, it will return a 0 length array
 func (s *ReqHandler) handleGetHighestReq(msg *network.SyncChanObj) {
+	logger := s.logger.With(zap.String("fromPeer", msg.Msg.FromPeerID))
+	logger.Debug("Got request for highest decided")
 	res, err := s.getHighestDecided()
 	if err != nil {
 		s.logger.Error("failed to get highest decided from db", zap.String("fromPeer", msg.Msg.FromPeerID), zap.Error(err))
@@ -18,6 +20,7 @@ func (s *ReqHandler) handleGetHighestReq(msg *network.SyncChanObj) {
 	if err := s.network.RespondToHighestDecidedInstance(msg.Stream, res); err != nil {
 		s.logger.Error("failed to send highest decided response", zap.Error(err))
 	}
+	logger.Debug("Send highest decided as requested!")
 }
 
 func (s *ReqHandler) getHighestDecided() (*network.SyncMessage, error) {
