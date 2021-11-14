@@ -110,5 +110,6 @@ func (s *Sync) getHighestDecidedFromPeers(peers []string) []*network.SyncMessage
 	}
 	wg.Wait()
 
+	s.logger.Debug("Got highest decided msgs from peers", zap.Any("count", len(results)))
 	return results
 }
