@@ -148,23 +148,43 @@ message SignedMessage{
 
 #### Topics/Subnets
 
-**TODO**
+Messages in the network are being sent over a subnet/topic, which the relevant peers should be subscribed to. \
+This helps to reduce the overall bandwidth, related resources etc.
 
-- topics
-  - per validator (+ main topic)
-  - subnets fixed vs. dynamic number of subnets
+There are several options for how setup topics in the network:
+
+###### Topic per validator
+
+Each validator has a dedicated pubsub topic with all the relevant peers subscribed to it.
+
+It helps to reduce amount of messages in the network, but increases the number of topics.
+
+**SELECTED** for the first version of SSV
+
+###### Topic per multiple validators
+
+The other option is to use a single topic for multiple validators, 
+which helps to reduce to number of total topics but will cause a growth 
+in the number of messages each peer is getting.
+
+Topic list could be implemented in several ways:
+1. fixed/static list - a fixed list of <x> (e.g. 128) topics
+2. dynamic list - grows/shrinks according to given validators set
 
 
 ### 2. History Sync
 
-**TODO**
+History sync is the procedure of syncing decided messages from other peers. \
+It is a prerequisite for taking part in some validator's consensus.
 
-- why streams
-- rate limiting?
+Sync is done over streams as pubsub is not suitable for this case due to several reasons such as:
+- API nature is request/response, unlike broadcasting in consensus messages 
+- Bandwidth - only one peer (usually) needs the data
+- Adding complementary features like rate limiting will be easier to achieve 
 
 #### Stream Protocols
 
-**TODO**
+The following protocols are used as part of history sync:
 
 ##### Heights Decided
 
