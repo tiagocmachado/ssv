@@ -154,9 +154,11 @@ This helps to reduce the overall bandwidth, related resources etc.
 
 There are several options for how setup topics in the network.
 
-The first version of SSV testnet is using the first approach (topic per validator), the topology looks as follows:
+The first version of SSV testnet is using the first approach (topic per validator).
 
-![](./docs/resources/net-diagram.png)
+For example, a setup with 6 operators (A-F) and 3 vaidators (blue, red and yellow) looks as follows:
+
+![x](/docs/resources/net-diagram.png)
 
 ##### Topic per validator
 
