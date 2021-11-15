@@ -2,12 +2,13 @@
 
 **WIP**
 
+This document contains the networking specification for SSV.
     
 ## Fundamentals
 
 ### Stack
 
-SSV network is built using [Libp2p](https://libp2p.io/), a modular framework for decentralized P2P networking. \
+SSV is a decentralized P2P network, built with [Libp2p](https://libp2p.io/), a modular framework for P2P networking. \
 `discv5` is a complementary module used for decentralized discovery in the network.
 
 ### Transport
@@ -151,17 +152,17 @@ message SignedMessage{
 Messages in the network are being sent over a subnet/topic, which the relevant peers should be subscribed to. \
 This helps to reduce the overall bandwidth, related resources etc.
 
-There are several options for how setup topics in the network:
+There are several options for how setup topics in the network.
 
-###### Topic per validator
+**NOTE** The first version of SSV testnet is using the first approach (topic per validator)
+
+##### Topic per validator
 
 Each validator has a dedicated pubsub topic with all the relevant peers subscribed to it.
 
 It helps to reduce amount of messages in the network, but increases the number of topics.
 
-**SELECTED** for the first version of SSV
-
-###### Topic per multiple validators
+##### Topic per multiple validators
 
 The other option is to use a single topic for multiple validators, 
 which helps to reduce to number of total topics but will cause a growth 
