@@ -79,9 +79,13 @@ Network interaction is achieved by using the following protocols:
 
 ### 1. Consensus
 
-**TODO**
-- IBFT/QBFT consensus
-- state/decided propagation
+`IBFT`/`QBFT` consensus algorithm is used to govern `SSV` network.
+In short, `IBFT` ensures that consensus can be reached by a committee of operator nodes (n) while tolerating for a certain amount of faulty nodes (f) as defined by `n ≥ 3f + 1`. \
+As part of the algorithm, each node is broadcasting messages to other nodes in the committee, and saves the output of the consensus instances (AKA decided messages) in storage.
+
+More information regarding the protocol can be found in [iBFT annotated paper (By Blox)](../ibft/IBFT.md)
+
+**TODO** state/decided propagation
 
 #### Message
 
