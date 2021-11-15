@@ -87,7 +87,7 @@ func (s *Sync) getHighestDecidedFromPeers(peers []string) []*network.SyncMessage
 					lock.Unlock()
 				} else {
 					s.logger.Error("received request error when fetching highest decided", zap.Error(err),
-						zap.String("identifier", hex.EncodeToString(s.identifier)))
+						zap.String("identifier", hex.EncodeToString(s.identifier)), zap.String("peer", peer))
 				}
 				return
 			}
