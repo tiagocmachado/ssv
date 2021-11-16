@@ -83,7 +83,7 @@ Network interaction is achieved by using the following protocols:
 In short, `IBFT` ensures that consensus can be reached by a committee of operator nodes (n) while tolerating for a certain amount of faulty nodes (f) as defined by `n ≥ 3f + 1`. \
 As part of the algorithm, each node is broadcasting messages to other nodes in the committee, and saves the output of the consensus instances (AKA decided messages) in storage.
 
-More information regarding the protocol can be found in [iBFT annotated paper (By Blox)](../ibft/IBFT.md)
+More information regarding the protocol can be found in [iBFT annotated paper (By Blox)](/ibft/IBFT.md)
 
 **TODO** state/decided propagation
 
@@ -110,29 +110,7 @@ message Message {
 }
 ```
 
-IBFT stage is represented by an enum:
-
-```protobuf
-// RoundState is the available types of IBFT state / stage
-enum RoundState {
-  // NotStarted is when no instance has started yet
-  NotStarted  = 0;
-  // PrePrepare is the first stage in IBFT
-  PrePrepare  = 1;
-  // Prepare is the second stage in IBFT
-  Prepare     = 2;
-  // Commit is when an instance receives a qualified quorum of prepare msgs, then sends a commit msg
-  Commit      = 3;
-  // ChangeRound is sent upon round change
-  ChangeRound = 4;
-  // Decided is when an instance receives a qualified quorum of commit msgs
-  Decided     = 5;
-  // Stopped is the state of an instance that stopped running
-  Stopped     = 6;
-}
-```
-
-`SignedMessage` is the wrapping object that adds a signature and the corresponding singers:
+`SignedMessage` is the wrapping object that includes signature and singers besides the actual message:
 
 ```protobuf
 syntax = "proto3";
@@ -149,6 +127,21 @@ message SignedMessage{
 }
 ```
 
+See the following example of a message json:
+```json
+{
+  "message": {
+    "type": 3,
+    "round": 1,
+    "lambda": "OTFiZGZjOWQxYzU4NzZkYTEwY...",
+    "seq_number": 28276,
+    "value": "mB0aAAAAAAA4AAAAAAAAADpTC1djq..."
+  },
+  "signature": "jrB0+Z9zyzzVaUpDMTlCt6Om9mj...",
+  "signer_ids": [4, 2, 3]
+}
+```
+
 **NOTE** that all pubsub messages in the network are wrapped by libp2p's message structure
 
 #### Topics/Subnets
@@ -156,19 +149,19 @@ message SignedMessage{
 Messages in the network are being sent over a subnet/topic, which the relevant peers should be subscribed to. \
 This helps to reduce the overall bandwidth, related resources etc.
 
-There are several options for how setup topics in the network.
+There are several options for how setup topics in the network, see below.
 
 The first version of SSV testnet is using the first approach (topic per validator).
-
-For example, a setup with 6 operators (A-F) and 3 vaidators (blue, red and yellow) looks as follows:
-
-![x](/docs/resources/net-diagram.png)
 
 ##### Topic per validator
 
 Each validator has a dedicated pubsub topic with all the relevant peers subscribed to it.
 
 It helps to reduce amount of messages in the network, but increases the number of topics.
+
+For example, a setup with 6 operators (A-F) and 3 vaidators (blue, red and yellow) looks as follows:
+
+![x](/docs/resources/net-diagram.png)
 
 ##### Topic per multiple validators
 
@@ -180,6 +173,7 @@ Topic list could be implemented in several ways:
 1. fixed/static list - a fixed list of <x> (e.g. 128) topics
 2. dynamic list - grows/shrinks according to given validators set
 
+**TODO: elaborate**
 
 ### 2. History Sync
 
@@ -190,6 +184,34 @@ Sync is done over streams as pubsub is not suitable for this case due to several
 - API nature is request/response, unlike broadcasting in consensus messages 
 - Bandwidth - only one peer (usually) needs the data
 - Adding complementary features like rate limiting will be easier to achieve 
+
+#### Message Structure
+
+Sync message structure is used in all sync protocols, the type of message is specified in a dedicated field to achieve reuse:   
+```protobuf
+message SyncMessage {
+  // SignedMessages holds a list of decided messages
+  repeated proto.SignedMessage SignedMessages = 1;
+  // FromPeerID is the peer ID of the sender
+  string FromPeerID                           = 2;
+  repeated uint64 params                      = 3;
+  // Lambda is the identifier
+  bytes Lambda                                = 4;
+  // Type is the type of sync message
+  Sync Type                                   = 5;
+  string error                                = 6;
+}
+
+// Sync is an enum that represents the type of sync message 
+enum Sync {
+  // GetHighestType is a request from peers to return the highest decided/ prepared instance they know of
+  GetHighestType = 0;
+  // GetInstanceRange is a request from peers to return instances and their decided/ prepared justifications
+  GetInstanceRange = 1;
+  // GetCurrentInstance is a request from peers to return their current running instance details
+  GetLatestChangeRound = 2;
+}
+```
 
 #### Stream Protocols
 
