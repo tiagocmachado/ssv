@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/async"
 	"go.uber.org/zap"
+	"io"
 	"time"
 )
 
@@ -132,6 +133,23 @@ func (b *BadgerDb) Close() {
 	if err := b.db.Close(); err != nil {
 		b.logger.Fatal("failed to close db", zap.Error(err))
 	}
+}
+
+// Backup dumps a protobuf-encoded list of all entries in the given prefix into the
+// writer, only entries that are newer than or equal to the specified version. It
+// returns a timestamp (version) indicating the version of last entry that is
+// dumped
+func (b *BadgerDb) Backup(w io.Writer, since uint64, prefix []byte) (uint64, error) {
+	stream := b.db.NewStream()
+	stream.LogPrefix = "DB.Backup"
+	stream.SinceTs = since
+	stream.Prefix = prefix[:]
+	return stream.Backup(w, since)
+}
+
+// RunGC runs garbage collection on values
+func (b *BadgerDb) RunGC() error {
+	return b.db.RunValueLogGC(0.5)
 }
 
 // report the db size and metrics
