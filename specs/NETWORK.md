@@ -198,12 +198,17 @@ message SyncMessage {
   // Lambda is the identifier
   bytes Lambda                                = 4;
   // Type is the type of sync message
-  Sync Type                                   = 5;
+  SyncMsgType Type                                   = 5;
   string error                                = 6;
 }
+```
 
-// Sync is an enum that represents the type of sync message 
-enum Sync {
+`SignedMessage` is mentioned above in consensus message structure.
+
+`SyncMsgType` (formerly `Sync`) is an enum that represents the type of message:
+```protobuf
+// SyncMsgType is an enum that represents the type of sync message 
+enum SyncMsgType {
   // GetHighestType is a request from peers to return the highest decided/ prepared instance they know of
   GetHighestType = 0;
   // GetInstanceRange is a request from peers to return instances and their decided/ prepared justifications
@@ -251,7 +256,18 @@ The following protocols are used as part of history sync:
 
 ### Forks
 
-**TODO**
+Future network forks will follow the general forks mechanism and design in SSV. \
+The idea is to wrap procedures that have potential to be changed in future versions.
+
+#### Fork v0
+
+In `v0` the following will have a fork implementation:
+- validator topic mapping
+  - `ValidatorTopicID(pk []byte) string`
+  - in `v0` the validator public key is also the topic
+- message encoding
+  - `EncodeNetworkMsg(msg *network.Message) ([]byte, error)`
+  - `DecodeNetworkMsg(data []byte) (*network.Message, error)`
 
 ## Open points
 
