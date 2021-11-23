@@ -85,7 +85,8 @@ As part of the algorithm, each node is broadcasting messages to other nodes in t
 
 More information regarding the protocol can be found in [iBFT annotated paper (By Blox)](/ibft/IBFT.md)
 
-**TODO** state/decided propagation
+Once the committee reaches consensus, the nodes will publish the decided message across the network 
+to ensure all "stakeholders" (e.g. exporter) gets the message.
 
 #### Message
 
@@ -224,21 +225,28 @@ The following protocols are used as part of history sync:
 
 ##### Heights Decided
 
+This protocol is used by a node to find out what is the highest decided message among a specific committee. \
+In case there are no decided messages, it will return an empty array of messages.
+
 `/sync/highest_decided/0.0.1`
 
-**TODO**
+**TODO: add example request/response**
 
 ##### Decided By Range 
 
+This protocol enables to sync decided messages in some specific range.
+
 `/sync/decided_by_range/0.0.1`
 
-**TODO**
+**TODO: add example request/response**
 
 ##### Last Change Round
 
+This protocol enables a node that was online to catch up with change round messages.
+
 `/sync/last_change_round/0.0.1`
 
-**TODO**
+**TODO: add example request/response**
 
 ## Networking
 
@@ -250,7 +258,7 @@ The following protocols are used as part of history sync:
 
 **TODO**
 
-#### Alternatives
+#### Discovery Alternatives
 
 - Kademlia DHT (**TODO**)
 
@@ -261,13 +269,11 @@ The idea is to wrap procedures that have potential to be changed in future versi
 
 #### Fork v0
 
-In `v0` the following will have a fork implementation:
+In `v0` the following procedures will be wrapped with a fork:
 - validator topic mapping
-  - `ValidatorTopicID(pk []byte) string`
-  - in `v0` the validator public key is also the topic
+  - The validator public key is the topic name
 - message encoding
-  - `EncodeNetworkMsg(msg *network.Message) ([]byte, error)`
-  - `DecodeNetworkMsg(data []byte) (*network.Message, error)`
+  - JSON encoding is used to encode messages
 
 ## Open points
 
