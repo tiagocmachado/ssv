@@ -8,23 +8,19 @@ import (
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"time"
 )
 
-func (exp *exporter) continuouslyUpdateValidatorMetaData() {
-	for {
-		time.Sleep(exp.validatorMetaDataUpdateInterval)
-
-		shares, err := exp.validatorStorage.GetAllValidatorsShare()
-		if err != nil {
-			exp.logger.Error("could not get validators shares for metadata update", zap.Error(err))
-			continue
-		}
-
-		exp.updateValidatorsMetadata(shares, metaDataBatchSize)
+// triggerUpdateValidatorsMetaData is trying to update metadata of all validators
+func (exp *exporter) triggerUpdateValidatorsMetaData() {
+	shares, err := exp.validatorStorage.GetAllValidatorsShare()
+	if err != nil {
+		exp.logger.Error("could not get validators shares for metadata update", zap.Error(err))
+		return
 	}
+	exp.updateValidatorsMetadata(shares, metaDataBatchSize)
 }
 
+// warmupValidatorsMetaData updates and report all validators metadata, should be called only at startup
 func (exp *exporter) warmupValidatorsMetaData() error {
 	shares, err := exp.validatorStorage.GetAllValidatorsShare()
 	if err != nil {

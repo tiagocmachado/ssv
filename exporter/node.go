@@ -19,6 +19,7 @@ import (
 	validatorstorage "github.com/bloxapp/ssv/validator/storage"
 	"github.com/herumi/bls-eth-go-binary/bls"
 	"github.com/pkg/errors"
+	"github.com/prysmaticlabs/prysm/async"
 	"go.uber.org/zap"
 	"sync"
 	"time"
@@ -59,6 +60,7 @@ type Options struct {
 	IbftSyncEnabled                 bool
 	CleanRegistryData               bool
 	ValidatorMetaDataUpdateInterval time.Duration
+	OperatorUpdateInterval          time.Duration
 }
 
 // exporter is the internal implementation of Exporter interface
@@ -82,6 +84,7 @@ type exporter struct {
 	wsAPIPort                       int
 	ibftSyncEnabled                 bool
 	validatorMetaDataUpdateInterval time.Duration
+	operatorUpdateInterval          time.Duration
 
 	decidedReadersQueue  tasks.Queue
 	networkReadersQueue  tasks.Queue
@@ -123,6 +126,7 @@ func New(opts Options) Exporter {
 		wsAPIPort:                       opts.WsAPIPort,
 		ibftSyncEnabled:                 opts.IbftSyncEnabled,
 		validatorMetaDataUpdateInterval: opts.ValidatorMetaDataUpdateInterval,
+		operatorUpdateInterval:          opts.OperatorUpdateInterval,
 	}
 
 	if err := e.init(opts); err != nil {
@@ -153,16 +157,12 @@ func (exp *exporter) Start() error {
 	if err := exp.warmupValidatorsMetaData(); err != nil {
 		exp.logger.Error("failed to warmup validators metadata", zap.Error(err))
 	}
-	go exp.continuouslyUpdateValidatorMetaData()
-
+	// setup continuous loop to update validators metadata
+	async.RunEvery(exp.ctx, exp.validatorMetaDataUpdateInterval, exp.triggerUpdateValidatorsMetaData)
+	// report operators on startup
+	time.AfterFunc(time.Second, exp.reportOperators)
 	go exp.decidedReadersQueue.Start()
 	go exp.networkReadersQueue.Start()
-
-	if exp.ws == nil {
-		return nil
-	}
-
-	exp.ws.UseQueryHandler(exp.handleQueryRequests)
 
 	go exp.triggerAllValidators()
 
@@ -174,7 +174,11 @@ func (exp *exporter) Start() error {
 
 	go exp.startMainTopic()
 
-	go exp.reportOperators()
+	// setup websocket server
+	if exp.ws == nil {
+		return nil
+	}
+	exp.ws.UseQueryHandler(exp.handleQueryRequests)
 
 	return exp.ws.Start(fmt.Sprintf(":%d", exp.wsAPIPort))
 }
