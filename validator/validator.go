@@ -102,12 +102,8 @@ func (v *Validator) Start() error {
 
 		for _, ib := range v.ibfts { // init all ibfts
 			go func(ib ibft.Controller) {
-				ReportIBFTStatus(v.Share.PublicKey.SerializeToHexStr(), false, false)
 				if err := ib.Init(); err != nil {
 					v.logger.Error("could not initialize ibft instance", zap.Error(err))
-					ReportIBFTStatus(v.Share.PublicKey.SerializeToHexStr(), false, true)
-				} else {
-					ReportIBFTStatus(v.Share.PublicKey.SerializeToHexStr(), true, false)
 				}
 			}(ib)
 		}
@@ -119,7 +115,8 @@ func (v *Validator) Start() error {
 }
 
 func (v *Validator) listenToSignatureMessages() {
-	sigChan := v.network.ReceivedSignatureChan()
+	sigChan, done := v.network.ReceivedSignatureChan()
+	defer done()
 	for sigMsg := range sigChan {
 		if sigMsg == nil {
 			v.logger.Debug("got nil message")
@@ -164,7 +161,7 @@ func setupIbftController(
 		msgQueue,
 		proto.DefaultConsensusParams(),
 		share,
-		fork.IBFTControllerFork(),
+		fork.NewIBFTControllerFork(),
 		signer)
 }
 

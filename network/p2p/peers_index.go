@@ -23,6 +23,7 @@ type IndexData map[string]string
 type PeersIndex interface {
 	Run()
 	GetPeerData(pid, key string) string
+	IndexPeer(conn network.Conn)
 }
 
 // peersIndex implements PeersIndex
@@ -32,16 +33,18 @@ type peersIndex struct {
 	host host.Host
 	ids  *identify.IDService
 
-	index *sync.Map
+	index map[string]IndexData
+	lock  *sync.RWMutex
 }
 
 // NewPeersIndex creates a new instance
 func NewPeersIndex(host host.Host, ids *identify.IDService, logger *zap.Logger) PeersIndex {
 	pi := peersIndex{
+		logger: logger,
 		host:   host,
 		ids:    ids,
-		index:  new(sync.Map),
-		logger: logger,
+		index:  make(map[string]IndexData),
+		lock:   &sync.RWMutex{},
 	}
 
 	return &pi
@@ -49,9 +52,13 @@ func NewPeersIndex(host host.Host, ids *identify.IDService, logger *zap.Logger) 
 
 // Run tries to index data on all available peers
 func (pi *peersIndex) Run() {
+	pi.lock.Lock()
+	defer pi.lock.Unlock()
+
 	if pi.ids == nil {
 		return
 	}
+
 	conns := pi.host.Network().Conns()
 	for _, conn := range conns {
 		if err := pi.indexPeerConnection(conn); err != nil {
@@ -62,12 +69,11 @@ func (pi *peersIndex) Run() {
 
 // GetPeerData returns data of the given peer and key
 func (pi *peersIndex) GetPeerData(pid, key string) string {
-	loaded, found := pi.index.Load(pid)
-	if !found {
-		return ""
-	}
-	data, ok := loaded.(IndexData)
-	if !ok {
+	pi.lock.RLock()
+	defer pi.lock.RUnlock()
+
+	data, found := pi.index[pid]
+	if !found || len(data) == 0 {
 		return ""
 	}
 	if res, ok := data[key]; ok {
@@ -76,7 +82,23 @@ func (pi *peersIndex) GetPeerData(pid, key string) string {
 	return ""
 }
 
-// indexPeerConnection indexes the given peer / connection
+// IndexPeer indexes the given peer / connection
+func (pi *peersIndex) IndexPeer(conn network.Conn) {
+	pi.lock.RLock()
+	defer pi.lock.RUnlock()
+
+	if pi.ids == nil {
+		return
+	}
+
+	if err := pi.indexPeerConnection(conn); err != nil {
+		pi.logger.Debug("could not index connection", zap.Error(err),
+			zap.String("peerID", conn.RemotePeer().String()),
+			zap.String("multiaddr", conn.RemoteMultiaddr().String()))
+	}
+}
+
+// indexPeerConnection indexes (unsafe) the given peer / connection
 func (pi *peersIndex) indexPeerConnection(conn network.Conn) error {
 	pid := conn.RemotePeer()
 	pi.ids.IdentifyConn(conn)
@@ -89,16 +111,11 @@ func (pi *peersIndex) indexPeerConnection(conn network.Conn) error {
 		return errors.Wrap(err, "could not parse user agent")
 	}
 	var data IndexData
-	loaded, found := pi.index.Load(pid.String())
-	if found {
-		if data, ok = loaded.(IndexData); !ok {
-			pi.logger.Debug("could not parse index data, overriding corrupted value")
-			data = IndexData{}
-		}
-	} else {
+	data, found := pi.index[pid.String()]
+	if !found {
 		data = IndexData{}
 	}
 	data[UserAgentKey] = av
-	pi.index.Store(pid.String(), data)
+	pi.index[pid.String()] = data
 	return nil
 }

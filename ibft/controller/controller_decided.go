@@ -54,17 +54,28 @@ func (i *Controller) ProcessDecidedMessage(msg *proto.SignedMessage) {
 		i.logger.Error("received invalid decided message", zap.Error(err), zap.Uint64s("signer ids", msg.SignerIds))
 		return
 	}
+	logger := i.logger.With(zap.Uint64("seq number", msg.Message.SeqNumber), zap.Uint64s("signer ids", msg.SignerIds))
 
-	i.logger.Debug("received valid decided msg", zap.Uint64("seq number", msg.Message.SeqNumber), zap.Uint64s("signer ids", msg.SignerIds))
+	logger.Debug("received valid decided msg")
 
 	// if we already have this in storage, pass
 	known, err := i.decidedMsgKnown(msg)
 	if err != nil {
-		i.logger.Error("can't check if decided msg is known", zap.Error(err))
+		logger.Error("can't check if decided msg is known", zap.Error(err))
 		return
 	}
 	if known {
-		i.logger.Debug("decided is known, skipped")
+		// if decided is known, check for a more complete message (more signers)
+		if ignore, _ := i.checkDecidedMessageSigners(msg); !ignore {
+			if err := i.ibftStorage.SaveDecided(msg); err != nil {
+				logger.Error("can't update decided message", zap.Error(err))
+				return
+			}
+			logger.Debug("decided was updated")
+			ibft.ReportDecided(i.ValidatorShare.PublicKey.SerializeToHexStr(), msg)
+			return
+		}
+		logger.Debug("decided is known, skipped")
 		return
 	}
 
@@ -78,13 +89,13 @@ func (i *Controller) ProcessDecidedMessage(msg *proto.SignedMessage) {
 	// decided for later instances which require a full sync
 	shouldSync, err := i.decidedRequiresSync(msg)
 	if err != nil {
-		i.logger.Error("can't check decided msg", zap.Error(err))
+		logger.Error("can't check decided msg", zap.Error(err))
 		return
 	}
 	if shouldSync {
 		i.logger.Info("stopping current instance and syncing..")
 		if err := i.SyncIBFT(); err != nil {
-			i.logger.Error("failed sync after decided received", zap.Error(err))
+			logger.Error("failed sync after decided received", zap.Error(err))
 		}
 	}
 }
@@ -117,6 +128,22 @@ func (i *Controller) decidedMsgKnown(msg *proto.SignedMessage) (bool, error) {
 		return false, errors.Wrap(err, "could not get decided instance from storage")
 	}
 	return found, nil
+}
+
+// checkDecidedMessageSigners checks if signers of existing decided includes all signers of the newer message
+func (i *Controller) checkDecidedMessageSigners(msg *proto.SignedMessage) (bool, error) {
+	decided, found, err := i.ibftStorage.GetDecided(msg.Message.Lambda, msg.Message.SeqNumber)
+	if err != nil {
+		return false, errors.Wrap(err, "could not get decided instance from storage")
+	}
+	if !found {
+		return false, nil
+	}
+	// decided message should have at least 3 signers, so if the new decided has 4 signers -> override
+	if len(decided.SignerIds) < i.ValidatorShare.CommitteeSize() && len(msg.SignerIds) > len(decided.SignerIds) {
+		return false, nil
+	}
+	return true, nil
 }
 
 // decidedForCurrentInstance returns true if msg has same seq number is current instance

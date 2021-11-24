@@ -10,7 +10,6 @@ import (
 	"github.com/bloxapp/ssv/eth1/goeth"
 	"github.com/bloxapp/ssv/exporter"
 	"github.com/bloxapp/ssv/exporter/api"
-	"github.com/bloxapp/ssv/exporter/api/adapters/gorilla"
 	"github.com/bloxapp/ssv/monitoring/metrics"
 	"github.com/bloxapp/ssv/network"
 	networkForkV0 "github.com/bloxapp/ssv/network/forks/v0"
@@ -91,10 +90,14 @@ var StartExporterNodeCmd = &cobra.Command{
 			Logger.Fatal("failed to create db!", zap.Error(err))
 		}
 
-		cfg.P2pNetworkConfig.NetworkPrivateKey = utils.ECDSAPrivateKey(Logger, cfg.NetworkPrivateKey)
+		cfg.P2pNetworkConfig.NetworkPrivateKey, err = utils.ECDSAPrivateKey(Logger.With(zap.String("who", "p2pNetworkPrivateKey")), cfg.NetworkPrivateKey)
+		if err != nil {
+			log.Fatal("Failed to get p2p privateKey", zap.Error(err))
+		}
 		cfg.P2pNetworkConfig.ReportLastMsg = true
 		// TODO add fork interface for exporter or use the same forks as in operator
 		cfg.P2pNetworkConfig.Fork = networkForkV0.New()
+		cfg.P2pNetworkConfig.NodeType = p2p.Exporter
 		network, err := p2p.New(cmd.Context(), Logger, &cfg.P2pNetworkConfig)
 		if err != nil {
 			Logger.Fatal("failed to create network", zap.Error(err))
@@ -141,7 +144,7 @@ var StartExporterNodeCmd = &cobra.Command{
 		exporterOptions.Network = network
 		exporterOptions.DB = db
 		exporterOptions.Ctx = cmd.Context()
-		exporterOptions.WS = api.NewWsServer(Logger, gorilla.NewGorillaAdapter(Logger), nil, http.NewServeMux())
+		exporterOptions.WS = api.NewWsServer(cmd.Context(), Logger, nil, http.NewServeMux())
 		exporterOptions.WsAPIPort = cfg.WsAPIPort
 		exporterOptions.IbftSyncEnabled = cfg.IbftSyncEnabled
 		exporterOptions.CleanRegistryData = cfg.ETH1Options.CleanRegistryData
